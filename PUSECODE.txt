@@ -1,0 +1,101 @@
+CONSTANT HIGH_THRESHOLD = 80
+CONSTANT MEDIUM_THRESHOLD = 50
+CONSTANT DRAIN_BONUS = 25
+CONSTANT TRUCK_CAPACITY = 100
+CONSTANT MAX_TRIPS = 5
+DECLARE households AS ARRAY, reports AS ARRAY
+
+FUNCTION main()
+SET choice = 0
+WHILE choice != 4 DO
+CALL displayMenu()
+INPUT choice
+IF choice == 1 THEN
+CALL registerHousehold()
+ELSEIF choice == 2 THEN
+CALL submitWasteReport()
+ELSEIF choice == 3 THEN
+CALL runCollectorDashboard()
+ELSEIF choice != 4 THEN
+DISPLAY "Invalid choice"
+END IF
+END WHILE
+DISPLAY "Thank you for using CleanSL"
+END FUNCTION
+
+FUNCTION registerHousehold()
+INPUT name, phone, ward
+WHILE length(phone) != 8 OR name == "" DO
+DISPLAY "Invalid details, try again"
+INPUT name, phone, ward
+END WHILE
+SET householdID = "HH" + (length(households) + 1)
+ADD (householdID, name, phone, ward) TO households
+DISPLAY "Registered. Your ID is ", householdID
+END FUNCTION
+
+FUNCTION getTypeWeight(wasteType)
+IF wasteType == "HAZARDOUS" THEN RETURN 30
+ELSEIF wasteType == "ORGANIC" THEN RETURN 20
+ELSEIF wasteType == "GENERAL" THEN RETURN 10
+ELSE RETURN 5
+END IF
+END FUNCTION
+
+FUNCTION isValidReport(binLevel, wasteType, householdID)
+SET knownType = wasteType == "HAZARDOUS" OR wasteType == "ORGANIC"
+OR wasteType == "GENERAL" OR wasteType == "RECYCLABLE"
+RETURN binLevel >= 0 AND binLevel <= 100 AND knownType AND householdID IN households
+END FUNCTION
+
+FUNCTION calculatePriority(binLevel, wasteType, blockedDrain)
+SET score = 0.5 * binLevel + getTypeWeight(wasteType)
+IF blockedDrain == TRUE THEN
+SET score = score + DRAIN_BONUS
+END IF
+IF score > 100 THEN SET score = 100
+RETURN score
+END FUNCTION
+
+FUNCTION classifyPriority(score)
+IF score >= HIGH_THRESHOLD THEN RETURN "HIGH"
+ELSEIF score >= MEDIUM_THRESHOLD THEN RETURN "MEDIUM"
+ELSE RETURN "LOW"
+END IF
+END FUNCTION
+
+FUNCTION submitWasteReport()
+INPUT householdID, wasteType, binLevel, blockedDrain, wasteVolume
+WHILE NOT isValidReport(binLevel, wasteType, householdID) DO
+DISPLAY "Invalid report. Please re-enter."
+INPUT householdID, wasteType, binLevel, blockedDrain, wasteVolume
+END WHILE
+SET score = calculatePriority(binLevel, wasteType, blockedDrain)
+SET priority = classifyPriority(score)
+SET ref = "R" + (length(reports) + 1)
+ADD (ref, householdID, wasteVolume, score, priority, "PENDING") TO reports
+DISPLAY "Report ", ref, " saved. Priority: ", priority
+END FUNCTION
+
+FUNCTION runCollectorDashboard()
+SET pending = reports WHERE status == "PENDING"
+SORT pending BY score DESCENDING
+SET i = 1, trips = 0, truckLoad = 0, route = EMPTY LIST
+WHILE i <= length(pending) AND trips < MAX_TRIPS DO
+SET r = pending[i]
+IF truckLoad + r.wasteVolume > TRUCK_CAPACITY THEN
+DISPLAY route
+SET trips = trips + 1
+SET truckLoad = 0, route = EMPTY LIST
+END IF
+ADD r.ref TO route
+SET truckLoad = truckLoad + r.wasteVolume
+SET r.status = "ASSIGNED"
+SET i = i + 1
+END WHILE
+IF route IS NOT EMPTY THEN
+DISPLAY route
+SET trips = trips + 1
+END IF
+DISPLAY "Reports handled: ", i - 1, " Trips: ", trips
+END FUNCTION
