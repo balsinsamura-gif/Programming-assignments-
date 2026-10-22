@@ -1,0 +1,409 @@
+<?xml version="1.0"?>
+<flowgorithm fileversion="4.2">
+    <attributes>
+        <attribute name="name" value="CleanSL"/>
+        <attribute name="authors" value="Student"/>
+        <attribute name="about" value="CleanSL - community waste management for Freetown, Sierra Leone"/>
+        <attribute name="saved" value="2026-10-19 11:52:18 AM"/>
+        <attribute name="created" value="U3R1ZGVudDtQQzsyMDI2LTEwLTE5OzEwOjE1OjAwIEFNOzE="/>
+        <attribute name="edited" value="U3R1ZGVudDtQQzsyMDI2LTEwLTE5OzEwOjE1OjAwIEFNOzI="/>
+        <attribute name="edited" value="SHA7REVTS1RPUC02QUIzVVJTOzIwMjYtMTAtMTk7MTE6NTI6MTggQU07MjsyNjMw"/>
+    </attributes>
+    <function name="Main" type="None" variable="">
+        <parameters/>
+        <body>
+            <comment text="CleanSL - constants (Flowgorithm has no CONSTANT keyword, so they are variables)"/>
+            <declare name="limitHigh" type="Integer" array="False" size=""/>
+            <assign variable="limitHigh" expression="70"/>
+            <declare name="limitMedium" type="Integer" array="False" size=""/>
+            <assign variable="limitMedium" expression="50"/>
+            <declare name="bonusDrain" type="Integer" array="False" size=""/>
+            <assign variable="bonusDrain" expression="20"/>
+            <declare name="truckCap" type="Integer" array="False" size=""/>
+            <assign variable="truckCap" expression="90"/>
+            <declare name="tripLimit" type="Integer" array="False" size=""/>
+            <assign variable="tripLimit" expression="5"/>
+            <comment text="Households: parallel arrays (index 0 = first household)"/>
+            <declare name="hhID" type="String" array="True" size="50"/>
+            <declare name="hhName" type="String" array="True" size="50"/>
+            <declare name="hhPhone" type="String" array="True" size="50"/>
+            <declare name="hhWard" type="String" array="True" size="50"/>
+            <comment text="Reports: parallel arrays"/>
+            <declare name="rRef" type="String" array="True" size="100"/>
+            <declare name="rHH" type="String" array="True" size="100"/>
+            <declare name="rPriority" type="String" array="True" size="100"/>
+            <declare name="rStatus" type="String" array="True" size="100"/>
+            <declare name="rVol" type="Integer" array="True" size="100"/>
+            <declare name="rScore" type="Real" array="True" size="100"/>
+            <declare name="hhCount" type="Integer" array="False" size=""/>
+            <assign variable="hhCount" expression="0"/>
+            <declare name="reportCount" type="Integer" array="False" size=""/>
+            <assign variable="reportCount" expression="0"/>
+            <declare name="choice" type="Integer" array="False" size=""/>
+            <assign variable="choice" expression="0"/>
+            <while expression="choice != 4">
+                <call expression="displayMenu()"/>
+                <output expression="&quot;Enter choice: &quot;" newline="False"/>
+                <input variable="choice"/>
+                <if expression="choice == 1">
+                    <then>
+                        <assign variable="hhCount" expression="registerHousehold(hhID, hhName, hhPhone, hhWard, hhCount)"/>
+                    </then>
+                    <else>
+                        <if expression="choice == 2">
+                            <then>
+                                <assign variable="reportCount" expression="submitWasteReport(hhID, hhCount, rRef, rHH, rVol, rScore, rPriority, rStatus, reportCount, limitHigh, limitMedium, bonusDrain, truckCap)"/>
+                            </then>
+                            <else>
+                                <if expression="choice == 3">
+                                    <then>
+                                        <call expression="runCollectorDashboard(rRef, rVol, rScore, rStatus, reportCount, truckCap, tripLimit)"/>
+                                    </then>
+                                    <else>
+                                        <if expression="choice != 4">
+                                            <then>
+                                                <output expression="&quot;Invalid choice&quot;" newline="True"/>
+                                            </then>
+                                            <else/>
+                                        </if>
+                                    </else>
+                                </if>
+                            </else>
+                        </if>
+                    </else>
+                </if>
+            </while>
+            <output expression="&quot;Thank you for using CleanSL&quot;" newline="True"/>
+        </body>
+    </function>
+    <function name="calculatePriority" type="Real" variable="">
+        <parameters>
+            <parameter name="binLevel" type="Integer" array="False"/>
+            <parameter name="wasteType" type="String" array="False"/>
+            <parameter name="blockedDrain" type="Boolean" array="False"/>
+            <parameter name="drainBonus" type="Integer" array="False"/>
+        </parameters>
+        <body>
+            <declare name="score" type="Real" array="False" size=""/>
+            <assign variable="score" expression="0.5 * binLevel + getTypeWeight(wasteType)"/>
+            <if expression="blockedDrain == true">
+                <then>
+                    <assign variable="score" expression="score + drainBonus"/>
+                </then>
+                <else/>
+            </if>
+            <if expression="score &gt; 100">
+                <then>
+                    <assign variable="score" expression="100"/>
+                </then>
+                <else/>
+            </if>
+            <comment text="Unsupported shape: return&#10; expression=&quot;score&quot;"/>
+        </body>
+    </function>
+    <function name="classifyPriority" type="String" variable="">
+        <parameters>
+            <parameter name="score" type="Real" array="False"/>
+            <parameter name="highThreshold" type="Integer" array="False"/>
+            <parameter name="mediumThreshold" type="Integer" array="False"/>
+        </parameters>
+        <body>
+            <declare name="priority" type="String" array="False" size=""/>
+            <if expression="score &gt;= highThreshold">
+                <then>
+                    <assign variable="priority" expression="&quot;HIGH&quot;"/>
+                </then>
+                <else>
+                    <if expression="score &gt;= mediumThreshold">
+                        <then>
+                            <assign variable="priority" expression="&quot;MEDIUM&quot;"/>
+                        </then>
+                        <else>
+                            <assign variable="priority" expression="&quot;LOW&quot;"/>
+                        </else>
+                    </if>
+                </else>
+            </if>
+            <comment text="Unsupported shape: return&#10; expression=&quot;priority&quot;"/>
+        </body>
+    </function>
+    <function name="displayMenu" type="None" variable="">
+        <parameters/>
+        <body>
+            <output expression="&quot;&quot;" newline="True"/>
+            <output expression="&quot;===== CleanSL Menu =====&quot;" newline="True"/>
+            <output expression="&quot;1. Register household&quot;" newline="True"/>
+            <output expression="&quot;2. Submit waste report&quot;" newline="True"/>
+            <output expression="&quot;3. Collector dashboard&quot;" newline="True"/>
+            <output expression="&quot;4. Exit&quot;" newline="True"/>
+        </body>
+    </function>
+    <function name="getTypeWeight" type="Integer" variable="">
+        <parameters>
+            <parameter name="wasteType" type="String" array="False"/>
+        </parameters>
+        <body>
+            <declare name="weight" type="Integer" array="False" size=""/>
+            <if expression="wasteType == &quot;HAZARDOUS&quot;">
+                <then>
+                    <assign variable="weight" expression="30"/>
+                </then>
+                <else>
+                    <if expression="wasteType == &quot;ORGANIC&quot;">
+                        <then>
+                            <assign variable="weight" expression="20"/>
+                        </then>
+                        <else>
+                            <if expression="wasteType == &quot;GENERAL&quot;">
+                                <then>
+                                    <assign variable="weight" expression="10"/>
+                                </then>
+                                <else>
+                                    <assign variable="weight" expression="5"/>
+                                </else>
+                            </if>
+                        </else>
+                    </if>
+                </else>
+            </if>
+            <comment text="Unsupported shape: return&#10; expression=&quot;weight&quot;"/>
+        </body>
+    </function>
+    <function name="isValidReport" type="Boolean" variable="">
+        <parameters>
+            <parameter name="binLevel" type="Integer" array="False"/>
+            <parameter name="wasteType" type="String" array="False"/>
+            <parameter name="householdID" type="String" array="False"/>
+            <parameter name="wasteVolume" type="Integer" array="False"/>
+            <parameter name="hhID" type="String" array="True"/>
+            <parameter name="hhCount" type="Integer" array="False"/>
+            <parameter name="truckCapacity" type="Integer" array="False"/>
+        </parameters>
+        <body>
+            <declare name="valid" type="Boolean" array="False" size=""/>
+            <declare name="knownType" type="Boolean" array="False" size=""/>
+            <declare name="found" type="Boolean" array="False" size=""/>
+            <declare name="i" type="Integer" array="False" size=""/>
+            <assign variable="knownType" expression="wasteType == &quot;HAZARDOUS&quot; or wasteType == &quot;ORGANIC&quot; or wasteType == &quot;GENERAL&quot; or wasteType == &quot;RECYCLABLE&quot;"/>
+            <assign variable="found" expression="false"/>
+            <for variable="i" start="0" end="hhCount - 1" direction="inc" step="1">
+                <if expression="hhID[i] == householdID">
+                    <then>
+                        <assign variable="found" expression="true"/>
+                    </then>
+                    <else/>
+                </if>
+            </for>
+            <assign variable="valid" expression="binLevel &gt;= 0 and binLevel &lt;= 100 and knownType and found and wasteVolume &gt; 0 and wasteVolume &lt;= truckCapacity"/>
+            <comment text="Unsupported shape: return&#10; expression=&quot;valid&quot;"/>
+        </body>
+    </function>
+    <function name="registerHousehold" type="Integer" variable="">
+        <parameters>
+            <parameter name="hhID" type="String" array="True"/>
+            <parameter name="hhName" type="String" array="True"/>
+            <parameter name="hhPhone" type="String" array="True"/>
+            <parameter name="hhWard" type="String" array="True"/>
+            <parameter name="hhCount" type="Integer" array="False"/>
+        </parameters>
+        <body>
+            <declare name="custName" type="String" array="False" size=""/>
+            <declare name="phone" type="String" array="False" size=""/>
+            <declare name="ward" type="String" array="False" size=""/>
+            <declare name="householdID" type="String" array="False" size=""/>
+            <declare name="newCount" type="Integer" array="False" size=""/>
+            <output expression="&quot;Enter name: &quot;" newline="False"/>
+            <input variable="custName"/>
+            <output expression="&quot;Enter phone (8 digits): &quot;" newline="False"/>
+            <input variable="phone"/>
+            <output expression="&quot;Enter ward: &quot;" newline="False"/>
+            <input variable="ward"/>
+            <while expression="Length(phone) != 9 or custName == &quot;&quot;">
+                <output expression="&quot;Invalid details, try again&quot;" newline="True"/>
+                <output expression="&quot;Enter name: &quot;" newline="False"/>
+                <input variable="custName"/>
+                <output expression="&quot;Enter phone (8 digits): &quot;" newline="False"/>
+                <input variable="phone"/>
+                <output expression="&quot;Enter ward: &quot;" newline="False"/>
+                <input variable="ward"/>
+            </while>
+            <assign variable="householdID" expression="&quot;HH&quot; &amp; (hhCount + 1)"/>
+            <assign variable="hhID[hhCount]" expression="householdID"/>
+            <assign variable="hhName[hhCount]" expression="custName"/>
+            <assign variable="hhPhone[hhCount]" expression="phone"/>
+            <assign variable="hhWard[hhCount]" expression="ward"/>
+            <assign variable="newCount" expression="hhCount + 1"/>
+            <output expression="&quot;Registered. Your ID is &quot; &amp; householdID" newline="True"/>
+            <comment text="Unsupported shape: return&#10; expression=&quot;newCount&quot;"/>
+        </body>
+    </function>
+    <function name="runCollectorDashboard" type="None" variable="">
+        <parameters>
+            <parameter name="rRef" type="String" array="True"/>
+            <parameter name="rVol" type="Integer" array="True"/>
+            <parameter name="rScore" type="Real" array="True"/>
+            <parameter name="rStatus" type="String" array="True"/>
+            <parameter name="reportCount" type="Integer" array="False"/>
+            <parameter name="truckCapacity" type="Integer" array="False"/>
+            <parameter name="maxTrips" type="Integer" array="False"/>
+        </parameters>
+        <body>
+            <declare name="pendIdx" type="Integer" array="True" size="100"/>
+            <declare name="pendCount" type="Integer" array="False" size=""/>
+            <declare name="i" type="Integer" array="False" size=""/>
+            <declare name="a" type="Integer" array="False" size=""/>
+            <declare name="b" type="Integer" array="False" size=""/>
+            <declare name="s1" type="Integer" array="False" size=""/>
+            <declare name="s2" type="Integer" array="False" size=""/>
+            <declare name="tmp" type="Integer" array="False" size=""/>
+            <declare name="trips" type="Integer" array="False" size=""/>
+            <declare name="truckLoad" type="Integer" array="False" size=""/>
+            <declare name="idx" type="Integer" array="False" size=""/>
+            <declare name="vol" type="Integer" array="False" size=""/>
+            <declare name="route" type="String" array="False" size=""/>
+            <declare name="stopNow" type="Boolean" array="False" size=""/>
+            <comment text="Step 1: collect the indexes of PENDING reports"/>
+            <assign variable="pendCount" expression="0"/>
+            <for variable="i" start="0" end="reportCount - 1" direction="inc" step="1">
+                <if expression="rStatus[i] == &quot;PENDING&quot;">
+                    <then>
+                        <assign variable="pendIdx[pendCount]" expression="i"/>
+                        <assign variable="pendCount" expression="pendCount + 1"/>
+                    </then>
+                    <else/>
+                </if>
+            </for>
+            <comment text="Step 2: sort pending by score, highest first (bubble sort; ties keep their order)"/>
+            <for variable="a" start="0" end="pendCount - 2" direction="inc" step="1">
+                <for variable="b" start="0" end="pendCount - 2 - a" direction="inc" step="1">
+                    <assign variable="s1" expression="pendIdx[b]"/>
+                    <assign variable="s2" expression="pendIdx[b + 1]"/>
+                    <if expression="rScore[s1] &lt; rScore[s2]">
+                        <then>
+                            <assign variable="tmp" expression="pendIdx[b]"/>
+                            <assign variable="pendIdx[b]" expression="pendIdx[b + 1]"/>
+                            <assign variable="pendIdx[b + 1]" expression="tmp"/>
+                        </then>
+                        <else/>
+                    </if>
+                </for>
+            </for>
+            <comment text="Step 3: load trucks in priority order"/>
+            <assign variable="i" expression="0"/>
+            <assign variable="trips" expression="0"/>
+            <assign variable="truckLoad" expression="0"/>
+            <assign variable="route" expression="&quot;&quot;"/>
+            <assign variable="stopNow" expression="false"/>
+            <while expression="i &lt; pendCount and stopNow == false">
+                <assign variable="idx" expression="pendIdx[i]"/>
+                <assign variable="vol" expression="rVol[idx]"/>
+                <if expression="truckLoad &gt; 0 and truckLoad + vol &gt; truckCapacity">
+                    <then>
+                        <assign variable="trips" expression="trips + 1"/>
+                        <output expression="&quot;Trip &quot; &amp; trips &amp; &quot;: [ &quot; &amp; route &amp; &quot;]&quot;" newline="True"/>
+                        <assign variable="truckLoad" expression="0"/>
+                        <assign variable="route" expression="&quot;&quot;"/>
+                        <if expression="trips == maxTrips">
+                            <then>
+                                <assign variable="stopNow" expression="true"/>
+                            </then>
+                            <else/>
+                        </if>
+                    </then>
+                    <else/>
+                </if>
+                <if expression="stopNow == false">
+                    <then>
+                        <assign variable="route" expression="route &amp; rRef[idx] &amp; &quot; &quot;"/>
+                        <assign variable="truckLoad" expression="truckLoad + vol"/>
+                        <assign variable="rStatus[idx]" expression="&quot;ASSIGNED&quot;"/>
+                        <assign variable="i" expression="i + 1"/>
+                    </then>
+                    <else/>
+                </if>
+            </while>
+            <if expression="route != &quot;&quot;">
+                <then>
+                    <assign variable="trips" expression="trips + 1"/>
+                    <output expression="&quot;Trip &quot; &amp; trips &amp; &quot;: [ &quot; &amp; route &amp; &quot;]&quot;" newline="True"/>
+                </then>
+                <else/>
+            </if>
+            <output expression="&quot;Reports handled: &quot; &amp; i &amp; &quot;  Trips: &quot; &amp; trips &amp; &quot;  Still pending: &quot; &amp; (pendCount - i)" newline="True"/>
+        </body>
+    </function>
+    <function name="submitWasteReport" type="Integer" variable="">
+        <parameters>
+            <parameter name="hhID" type="String" array="True"/>
+            <parameter name="hhCount" type="Integer" array="False"/>
+            <parameter name="rRef" type="String" array="True"/>
+            <parameter name="rHH" type="String" array="True"/>
+            <parameter name="rVol" type="Integer" array="True"/>
+            <parameter name="rScore" type="Real" array="True"/>
+            <parameter name="rPriority" type="String" array="True"/>
+            <parameter name="rStatus" type="String" array="True"/>
+            <parameter name="reportCount" type="Integer" array="False"/>
+            <parameter name="highThreshold" type="Integer" array="False"/>
+            <parameter name="mediumThreshold" type="Integer" array="False"/>
+            <parameter name="drainBonus" type="Integer" array="False"/>
+            <parameter name="truckCapacity" type="Integer" array="False"/>
+        </parameters>
+        <body>
+            <declare name="householdID" type="String" array="False" size=""/>
+            <declare name="wasteType" type="String" array="False" size=""/>
+            <declare name="binLevel" type="Integer" array="False" size=""/>
+            <declare name="drainAns" type="String" array="False" size=""/>
+            <declare name="wasteVolume" type="Integer" array="False" size=""/>
+            <declare name="blocked" type="Boolean" array="False" size=""/>
+            <declare name="valid" type="Boolean" array="False" size=""/>
+            <declare name="score" type="Real" array="False" size=""/>
+            <declare name="priority" type="String" array="False" size=""/>
+            <declare name="ref" type="String" array="False" size=""/>
+            <declare name="newCount" type="Integer" array="False" size=""/>
+            <output expression="&quot;Enter household ID (e.g. HH1): &quot;" newline="False"/>
+            <input variable="householdID"/>
+            <output expression="&quot;Enter waste type (HAZARDOUS, ORGANIC, GENERAL, RECYCLABLE): &quot;" newline="False"/>
+            <input variable="wasteType"/>
+            <output expression="&quot;Enter bin fill level (0-100): &quot;" newline="False"/>
+            <input variable="binLevel"/>
+            <output expression="&quot;Blocked drain? (Y/N): &quot;" newline="False"/>
+            <input variable="drainAns"/>
+            <output expression="&quot;Enter waste volume (1 to truck capacity): &quot;" newline="False"/>
+            <input variable="wasteVolume"/>
+            <assign variable="valid" expression="isValidReport(binLevel, wasteType, householdID, wasteVolume, hhID, hhCount, truckCapacity)"/>
+            <while expression="valid == false">
+                <output expression="&quot;Invalid report. Please re-enter.&quot;" newline="True"/>
+                <output expression="&quot;Enter household ID (e.g. HH1): &quot;" newline="False"/>
+                <input variable="householdID"/>
+                <output expression="&quot;Enter waste type (HAZARDOUS, ORGANIC, GENERAL, RECYCLABLE): &quot;" newline="False"/>
+                <input variable="wasteType"/>
+                <output expression="&quot;Enter bin fill level (0-100): &quot;" newline="False"/>
+                <input variable="binLevel"/>
+                <output expression="&quot;Blocked drain? (Y/N): &quot;" newline="False"/>
+                <input variable="drainAns"/>
+                <output expression="&quot;Enter waste volume (1 to truck capacity): &quot;" newline="False"/>
+                <input variable="wasteVolume"/>
+                <assign variable="valid" expression="isValidReport(binLevel, wasteType, householdID, wasteVolume, hhID, hhCount, truckCapacity)"/>
+            </while>
+            <assign variable="blocked" expression="false"/>
+            <if expression="drainAns == &quot;Y&quot;">
+                <then>
+                    <assign variable="blocked" expression="true"/>
+                </then>
+                <else/>
+            </if>
+            <assign variable="score" expression="calculatePriority(binLevel, wasteType, blocked, drainBonus)"/>
+            <assign variable="priority" expression="classifyPriority(score, highThreshold, mediumThreshold)"/>
+            <assign variable="ref" expression="&quot;R&quot; &amp; (reportCount + 1)"/>
+            <assign variable="rRef[reportCount]" expression="ref"/>
+            <assign variable="rHH[reportCount]" expression="householdID"/>
+            <assign variable="rVol[reportCount]" expression="wasteVolume"/>
+            <assign variable="rScore[reportCount]" expression="score"/>
+            <assign variable="rPriority[reportCount]" expression="priority"/>
+            <assign variable="rStatus[reportCount]" expression="&quot;PENDING&quot;"/>
+            <assign variable="newCount" expression="reportCount + 1"/>
+            <output expression="&quot;Report &quot; &amp; ref &amp; &quot; saved. Priority: &quot; &amp; priority" newline="True"/>
+            <comment text="Unsupported shape: return&#10; expression=&quot;newCount&quot;"/>
+        </body>
+    </function>
+</flowgorithm>
